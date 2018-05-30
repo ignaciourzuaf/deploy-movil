@@ -1,0 +1,21 @@
+AllCops:
+  TargetRubyVersion: 2.4
+  Exclude:
+    - 'bin/*'
+    - 'vendor/**/*'
+    - 'db/schema.rb'
+Style/Documentation:
+  Exclude:
+    - db/migrate/*
+Layout/DotPosition:
+  Enabled: true
+  EnforcedStyle: leading
+Style/FrozenStringLiteralComment:
+  Enabled: false
+Metrics/LineLength:
+  Max: 80
+Metrics/BlockLength:
+  Exclude:
+    - 'spec/requests/*.rb' # describe blocks are too long!
+  # This could be used to:
+  # ExcludedMethods: ['describe', 'context']

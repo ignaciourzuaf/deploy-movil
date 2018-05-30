@@ -1,0 +1,93 @@
+version: 2
+jobs:
+  gitflow:
+    docker:
+      - image: circleci/node:8.5
+    steps:
+      - run:
+          name: Check valid branch name
+          command: |
+            invalid=1
+            if [[ $CIRCLE_BRANCH == 'master' ]]; then invalid=0; fi
+            if [[ $CIRCLE_BRANCH == 'develop' ]]; then invalid=0; fi
+            if [[ $CIRCLE_BRANCH == 'release/'* ]]; then invalid=0; fi
+            if [[ $CIRCLE_BRANCH == 'feature/'* ]]; then invalid=0; fi
+            if [[ $CIRCLE_BRANCH == 'bug/'* ]]; then invalid=0; fi
+            if [[ $invalid == 1 ]]; then exit 1; fi
+  linter:
+    docker:
+       - image: circleci/ruby:2.4.1-node-browsers
+
+
+    working_directory: ~/repo/
+
+    steps:
+      - checkout
+
+      # Download and cache dependencies
+      - restore_cache:
+          keys:
+          - v1-dependencies-{{ checksum "Gemfile.lock" }}
+          # fallback to using the latest cache if no exact match is found
+          - v1-dependencies-
+
+      - run:
+          name: install dependencies
+          command: |
+            bundle install --jobs=4 --retry=3 --path vendor/bundle
+      - save_cache:
+          paths:
+            - ./vendor/bundle
+          key: v1-dependencies-{{ checksum "Gemfile.lock" }}
+
+      # run linter!
+      - run: bundle exec rubocop
+
+  build:
+    docker:
+       - image: circleci/ruby:2.4.1-node-browsers
+         environment:
+           RAILS_ENV: test
+           POSTGRES_HOST: localhost
+       - image: circleci/postgres:9.5-alpine # database image
+
+    working_directory: ~/repo/
+
+    steps:
+      - checkout
+
+      # Download and cache dependencies
+      - restore_cache:
+          keys:
+          - v1-dependencies-{{ checksum "Gemfile.lock" }}
+          # fallback to using the latest cache if no exact match is found
+          - v1-dependencies-
+
+      - run:
+          name: install dependencies
+          command: |
+            bundle install --jobs=4 --retry=3 --path vendor/bundle
+      - save_cache:
+          paths:
+            - ./vendor/bundle
+          key: v1-dependencies-{{ checksum "Gemfile.lock" }}
+
+      - run:
+          name: database setup
+          command: rails db:setup
+
+      - run:
+          name: run tests
+          command: bundle exec rspec --out test_results/rspec.xml
+
+      - store_test_results:
+          path: test_results
+
+workflows:
+  version: 2
+  workflow:
+    # jobs that will run
+    jobs:
+      - gitflow
+      - linter
+      - build
